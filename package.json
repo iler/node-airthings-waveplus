@@ -1,0 +1,33 @@
+{
+  "name": "airthings-waveplus",
+  "version": "0.1.0",
+  "description": "Read data from Airthings Wave Plus air quality monitor",
+  "main": "waveplus.js",
+  "scripts": {
+    "test": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iler/node-airthings-waveplus.git"
+  },
+  "keywords": [
+    "airthings",
+    "wave-plus",
+    "radon",
+    "temperature",
+    "co2",
+    "humidity",
+    "bluetooth",
+    "node.js"
+  ],
+  "author": "Ilari Mäkelä",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iler/node-airthings-waveplus/issues"
+  },
+  "homepage": "https://github.com/iler/node-airthings-waveplus#readme",
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-8",
+    "python-struct": "^1.1.2"
+  }
+}
