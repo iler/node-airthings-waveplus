@@ -78,7 +78,7 @@ class WavePlus extends EventEmitter {
                 temperature: this.sensorData[SENSOR_IDX_TEMPERATURE],
                 pressure: this.sensorData[SENSOR_IDX_REL_ATM_PRESSURE],
                 co2: this.sensorData[SENSOR_IDX_CO2_LVL],
-                vo2: this.sensorData[SENSOR_IDX_VOC_LVL],
+                voc: this.sensorData[SENSOR_IDX_VOC_LVL],
                 radonLtAvg: this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG],
                 radonStAvg: this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG],
               });
