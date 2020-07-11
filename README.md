@@ -46,3 +46,5 @@ Object ```data``` has following properties:
 * ```voc```
 * ```radonLtAvg```
 * ```radonStAvg```
+
+Kudos for inspiration and example to [pakastin](https://github.com/pakastin/node-ruuvitag/)!
