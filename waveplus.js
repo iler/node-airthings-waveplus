@@ -13,9 +13,8 @@ class WavePlusDevice extends EventEmitter {
 }
 
 class WavePlus extends EventEmitter {
-  constructor (serialNumber) {
+  constructor () {
     super();
-    this.sn = serialNumber;
     this.uuid = ['b42e2a68ade711e489d3123b93f75cba'];
     this._foundDevices = []; // this array will contain registered Wave Plus devices
     this._deviceLookup = {};
@@ -33,7 +32,7 @@ class WavePlus extends EventEmitter {
       const manufacturerData = peripheral.advertisement ? peripheral.advertisement.manufacturerData : undefined;
       if (manufacturerData) {
         const deviceInfo = struct.unpack('<HLH', manufacturerData);
-        if (deviceInfo[0] === 0x0334 && deviceInfo[1] === this.sn) {
+        if (deviceInfo[0] === 0x0334) {
           if (!this._deviceLookup[peripheral.id]) {
             newWavePlus = new WavePlusDevice({
               id: peripheral.id,
