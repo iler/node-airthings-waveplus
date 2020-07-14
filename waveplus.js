@@ -117,7 +117,7 @@ function connect (wavePlus, peripheral) {
           radonLtAvg,
           radonStAvg
         });
-        disconnect(this, peripheral);
+        disconnect(wavePlus, peripheral);
       });
     });
   });
