@@ -19,6 +19,7 @@ class WavePlus extends EventEmitter {
     this.uuid = ['b42e2a68ade711e489d3123b93f75cba'];
     this._foundDevices = []; // this array will contain registered Wave Plus devices
     this._deviceLookup = {};
+    this._readingLookup = {};
     this.sensorData = [];
 
     const registerDevice = device => {
@@ -50,6 +51,11 @@ class WavePlus extends EventEmitter {
       const wavePlus = this._deviceLookup[peripheral.id];
 
       if (wavePlus) {
+        if (this._readingLookup[peripheral.id]) {
+          return;
+        }
+        this._readingLookup[peripheral.id] = true;
+
         peripheral.connect((error) => {
           if (error) {
             throw new Error(error);
@@ -91,14 +97,14 @@ class WavePlus extends EventEmitter {
                 radonLtAvg: this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG],
                 radonStAvg: this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG]
               });
-            });
-          });
-          peripheral.disconnect((error) => {
-            if (error) {
-              throw new Error(error);
-            }
+              peripheral.disconnect((error) => {
+                if (error) {
+                  throw new Error(error);
+                }
 
-            console.log('Disconnected from peripheral: ' + peripheral.uuid);
+                this._readingLookup[peripheral.id] = null;
+              });
+            });
           });
         });
       }
