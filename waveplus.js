@@ -51,10 +51,19 @@ class WavePlus extends EventEmitter {
 
       if (wavePlus) {
         peripheral.connect((error) => {
+          if (error) {
+            throw new Error(error);
+          }
           const serviceUUIDs = [];
           const characteristicUUIDs = this.uuid;
-          peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (_error, _services, characteristics) => {
-            characteristics[0].read((_error, data) => {
+          peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (error, _services, characteristics) => {
+            if (error) {
+              throw new Error(error);
+            }
+            characteristics[0].read((error, data) => {
+              if (error) {
+                throw new Error(error);
+              }
               const rawData = struct.unpack('BBBBHHHHHHHH', data);
               const SENSOR_IDX_HUMIDITY = 0;
               const SENSOR_IDX_RADON_SHORT_TERM_AVG = 1;
@@ -84,7 +93,11 @@ class WavePlus extends EventEmitter {
               });
             });
           });
-          peripheral.disconnect(function (error) {
+          peripheral.disconnect((error) => {
+            if (error) {
+              throw new Error(error);
+            }
+
             console.log('Disconnected from peripheral: ' + peripheral.uuid);
           });
         });
