@@ -51,8 +51,8 @@ class WavePlus extends EventEmitter {
 
       if (wavePlus) {
         peripheral.connect((error) => {
-          var serviceUUIDs = [];
-          var characteristicUUIDs = this.uuid;
+          const serviceUUIDs = [];
+          const characteristicUUIDs = this.uuid;
           peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (_error, _services, characteristics) => {
             characteristics[0].read((_error, data) => {
               const rawData = struct.unpack('BBBBHHHHHHHH', data);
