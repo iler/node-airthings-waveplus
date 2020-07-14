@@ -61,51 +61,7 @@ class WavePlus extends EventEmitter {
         }, 60 * 1000);
         this._readingLookup[peripheral.id] = true;
 
-        peripheral.connect((error) => {
-          if (error) {
-            throw new Error(error);
-          }
-          const serviceUUIDs = [];
-          const characteristicUUIDs = this.uuid;
-          peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (error, _services, characteristics) => {
-            if (error) {
-              throw new Error(error);
-            }
-            characteristics[0].read((error, data) => {
-              if (error) {
-                throw new Error(error);
-              }
-              const rawData = struct.unpack('BBBBHHHHHHHH', data);
-              const SENSOR_IDX_HUMIDITY = 0;
-              const SENSOR_IDX_RADON_SHORT_TERM_AVG = 1;
-              const SENSOR_IDX_RADON_LONG_TERM_AVG = 2;
-              const SENSOR_IDX_TEMPERATURE = 3;
-              const SENSOR_IDX_REL_ATM_PRESSURE = 4;
-              const SENSOR_IDX_CO2_LVL = 5;
-              const SENSOR_IDX_VOC_LVL = 6;
-
-              this.sensorData[SENSOR_IDX_HUMIDITY] = rawData[1] / 2.0;
-              this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG] = rawData[4];
-              this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG] = rawData[5];
-              this.sensorData[SENSOR_IDX_TEMPERATURE] = rawData[6] / 100.0;
-              this.sensorData[SENSOR_IDX_REL_ATM_PRESSURE] = rawData[7] / 50.0;
-              this.sensorData[SENSOR_IDX_CO2_LVL] = rawData[8] * 1.0;
-              this.sensorData[SENSOR_IDX_VOC_LVL] = rawData[9] * 1.0;
-
-              wavePlus.emit('updated', {
-                rssi: peripheral.rssi,
-                humidity: this.sensorData[SENSOR_IDX_HUMIDITY],
-                temperature: this.sensorData[SENSOR_IDX_TEMPERATURE],
-                pressure: this.sensorData[SENSOR_IDX_REL_ATM_PRESSURE],
-                co2: this.sensorData[SENSOR_IDX_CO2_LVL],
-                voc: this.sensorData[SENSOR_IDX_VOC_LVL],
-                radonLtAvg: this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG],
-                radonStAvg: this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG]
-              });
-              disconnect(this, peripheral);
-            });
-          });
-        });
+        connect(this, peripheral);
       }
     };
 
@@ -123,6 +79,49 @@ class WavePlus extends EventEmitter {
 }
 
 module.exports = new WavePlus();
+
+function connect (wavePlus, peripheral) {
+  peripheral.connect((error) => {
+    if (error) {
+      throw new Error(error);
+    }
+    const serviceUUIDs = [];
+    const characteristicUUIDs = wavePlus.uuid;
+    peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (error, _services, characteristics) => {
+      if (error) {
+        throw new Error(error);
+      }
+      characteristics[0].read((error, data) => {
+        if (error) {
+          throw new Error(error);
+        }
+        const rawData = struct.unpack('BBBBHHHHHHHH', data);
+
+        const { rssi } = peripheral;
+
+        const humidity = rawData[1] / 2.0;
+        const radonStAvg = rawData[4];
+        const radonLtAvg = rawData[5];
+        const temperature = rawData[6] / 100.0;
+        const pressure = rawData[7] / 50.0;
+        const co2 = rawData[8] * 1.0;
+        const voc = rawData[9] * 1.0;
+
+        wavePlus.emit('updated', {
+          rssi,
+          humidity,
+          temperature,
+          pressure,
+          co2,
+          voc,
+          radonLtAvg,
+          radonStAvg
+        });
+        disconnect(this, peripheral);
+      });
+    });
+  });
+}
 
 function disconnect (wavePlus, peripheral) {
   clearTimeout(wavePlus._readingTimeout[peripheral._id]);
