@@ -28,40 +28,40 @@ class WavePlus extends EventEmitter {
     };
 
     const onDiscover = peripheral => {
-      let newWavePlus;
+      let newDevice;
 
       const manufacturerData = peripheral.advertisement ? peripheral.advertisement.manufacturerData : undefined;
       if (manufacturerData) {
         const deviceInfo = struct.unpack('<HLH', manufacturerData);
         if (deviceInfo[0] === 0x0334) {
           if (!this._deviceLookup[peripheral.id]) {
-            newWavePlus = new WavePlusDevice({
+            newDevice = new WavePlusDevice({
               id: peripheral.id,
               serialNumber: deviceInfo[1],
               address: peripheral.address,
               connectable: peripheral.connectable
             });
-            registerDevice(newWavePlus);
-            this.emit('found', newWavePlus);
+            registerDevice(newDevice);
+            this.emit('found', newDevice);
           }
         }
       }
 
       // Check if it is an advertisement by an already found Wave Plus device, emit "updated" event
-      const wavePlus = this._deviceLookup[peripheral.id];
+      const device = this._deviceLookup[peripheral.id];
 
-      if (wavePlus) {
+      if (device) {
         if (this._readingLookup[peripheral.id]) {
           return;
         }
         this._readingTimeout[peripheral._id] = setTimeout(() => {
           if (this._readingLookup[peripheral._id]) {
-            disconnect(wavePlus, peripheral);
+            disconnect(device, peripheral);
           }
         }, 60 * 1000);
         this._readingLookup[peripheral.id] = true;
 
-        connect(this, peripheral);
+        connect(this, device, peripheral);
       }
     };
 
@@ -80,7 +80,7 @@ class WavePlus extends EventEmitter {
 
 module.exports = new WavePlus();
 
-function connect (wavePlus, peripheral) {
+function connect (wavePlus, device, peripheral) {
   peripheral.connect((error) => {
     if (error) {
       throw new Error(error);
@@ -107,7 +107,7 @@ function connect (wavePlus, peripheral) {
         const co2 = rawData[8] * 1.0;
         const voc = rawData[9] * 1.0;
 
-        wavePlus.emit('updated', {
+        device.emit('updated', {
           rssi,
           humidity,
           temperature,
