@@ -8,7 +8,7 @@ Tested on Raspberry Pi 3. Depends on [noble](https://github.com/abandonware/nobl
 ### Installation
 
 ```
-npm install node-airthings-waveplus
+npm install airthings-waveplus
 ```
 
 
