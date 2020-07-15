@@ -2,7 +2,7 @@
   "name": "airthings-waveplus",
   "version": "0.1.0",
   "description": "Read data from Airthings Wave Plus air quality monitor",
-  "main": "waveplus.js",
+  "main": "index.js",
   "scripts": {
     "test": ""
   },
