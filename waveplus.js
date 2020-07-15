@@ -1,4 +1,3 @@
-const noble = require('@abandonware/noble');
 const EventEmitter = require('events').EventEmitter;
 const struct = require('python-struct');
 
@@ -13,9 +12,10 @@ class WavePlusDevice extends EventEmitter {
 }
 
 class WavePlus extends EventEmitter {
-  constructor () {
+  constructor (adapter) {
     super();
     this.uuid = ['b42e2a68ade711e489d3123b93f75cba'];
+    this._adapter = adapter;
     this._foundDevices = []; // this array will contain registered Wave Plus devices
     this._deviceLookup = {};
     this._readingLookup = {};
@@ -27,7 +27,11 @@ class WavePlus extends EventEmitter {
       this._deviceLookup[device.id] = device;
     };
 
-    const onDiscover = peripheral => {
+    this._adapter.on('warning', warning => {
+      console.error(new Error(warning));
+    });
+
+    this._adapter.on('discover', peripheral => {
       let newDevice;
 
       const manufacturerData = peripheral.advertisement ? peripheral.advertisement.manufacturerData : undefined;
@@ -63,22 +67,11 @@ class WavePlus extends EventEmitter {
 
         connect(this, device, peripheral);
       }
-    };
-
-    noble.on('discover', onDiscover);
-
-    // start scanning
-    if (noble.state === 'poweredOn') {
-      noble.startScanning([], true);
-    } else {
-      noble.once('stateChange', () => {
-        noble.startScanning([], true);
-      });
-    }
+    });
   }
 }
 
-module.exports = new WavePlus();
+module.exports = WavePlus;
 
 function connect (wavePlus, device, peripheral) {
   peripheral.connect((error) => {
