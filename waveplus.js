@@ -55,16 +55,6 @@ class WavePlus extends EventEmitter {
       const device = this._deviceLookup[peripheral.id];
 
       if (device) {
-        if (this._readingLookup[peripheral.id]) {
-          return;
-        }
-        this._readingTimeout[peripheral._id] = setTimeout(() => {
-          if (this._readingLookup[peripheral._id]) {
-            disconnect(device, peripheral);
-          }
-        }, 60 * 1000);
-        this._readingLookup[peripheral.id] = true;
-
         connect(this, device, peripheral);
       }
     });
@@ -74,6 +64,18 @@ class WavePlus extends EventEmitter {
 module.exports = WavePlus;
 
 function connect (wavePlus, device, peripheral) {
+  if (wavePlus._readingLookup[peripheral.id]) {
+    return;
+  }
+  wavePlus._readingTimeout[peripheral._id] = setTimeout(() => {
+    if (wavePlus._readingLookup[peripheral._id]) {
+      disconnect(device, peripheral);
+    }
+  }, 60 * 1000);
+  wavePlus._readingLookup[peripheral.id] = true;
+
+  wavePlus._adapter.stop();
+
   peripheral.connect((error) => {
     if (error) {
       throw new Error(error);
@@ -117,12 +119,13 @@ function connect (wavePlus, device, peripheral) {
 }
 
 function disconnect (wavePlus, peripheral) {
-  clearTimeout(wavePlus._readingTimeout[peripheral._id]);
-  wavePlus._readingLookup[peripheral.id] = null;
-
   peripheral.disconnect(function (error) {
     if (error) {
       throw new Error(error);
     }
+    clearTimeout(wavePlus._readingTimeout[peripheral._id]);
+    wavePlus._readingLookup[peripheral.id] = null;
+
+    wavePlus._adapter.start();
   });
 }
