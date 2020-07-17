@@ -1,9 +1,8 @@
-const noble = require("@abandonware/noble");
-const EventEmitter = require("events").EventEmitter;
+const EventEmitter = require('events').EventEmitter;
 const struct = require('python-struct');
 
 class WavePlusDevice extends EventEmitter {
-  constructor(data) {
+  constructor (data) {
     super();
     this.id = data.id;
     this.serialNumber = data.serialNumber;
@@ -13,12 +12,14 @@ class WavePlusDevice extends EventEmitter {
 }
 
 class WavePlus extends EventEmitter {
-  constructor(serialNumber) {
+  constructor (adapter) {
     super();
-    this.sn = serialNumber;
     this.uuid = ['b42e2a68ade711e489d3123b93f75cba'];
+    this._adapter = adapter;
     this._foundDevices = []; // this array will contain registered Wave Plus devices
     this._deviceLookup = {};
+    this._readingLookup = {};
+    this._readingTimeout = {};
     this.sensorData = [];
 
     const registerDevice = device => {
@@ -26,82 +27,105 @@ class WavePlus extends EventEmitter {
       this._deviceLookup[device.id] = device;
     };
 
-    const onDiscover = peripheral => {
-      let newWavePlus;
+    this._adapter.on('warning', warning => {
+      console.error(new Error(warning));
+    });
+
+    this._adapter.on('discover', peripheral => {
+      let newDevice;
 
       const manufacturerData = peripheral.advertisement ? peripheral.advertisement.manufacturerData : undefined;
       if (manufacturerData) {
         const deviceInfo = struct.unpack('<HLH', manufacturerData);
-        if (deviceInfo[0] === 0x0334 && deviceInfo[1] === this.sn) {
+        if (deviceInfo[0] === 0x0334) {
           if (!this._deviceLookup[peripheral.id]) {
-            newWavePlus = new WavePlusDevice({
+            newDevice = new WavePlusDevice({
               id: peripheral.id,
               serialNumber: deviceInfo[1],
               address: peripheral.address,
-              connectable: peripheral.connectable,
+              connectable: peripheral.connectable
             });
-            registerDevice(newWavePlus);
-            this.emit("found", newWavePlus);
+            registerDevice(newDevice);
+            this.emit('found', newDevice);
           }
         }
       }
 
       // Check if it is an advertisement by an already found Wave Plus device, emit "updated" event
-      const wavePlus = this._deviceLookup[peripheral.id];
+      const device = this._deviceLookup[peripheral.id];
 
-      if (wavePlus) {
-        peripheral.connect((error) => {
-          var serviceUUIDs = [];
-          var characteristicUUIDs = this.uuid;
-          peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (_error, _services, characteristics) => {
-            characteristics[0].read((_error, data) => {
-              const rawData = struct.unpack('BBBBHHHHHHHH', data);
-              const SENSOR_IDX_HUMIDITY = 0;
-              const SENSOR_IDX_RADON_SHORT_TERM_AVG = 1;
-              const SENSOR_IDX_RADON_LONG_TERM_AVG = 2;
-              const SENSOR_IDX_TEMPERATURE = 3;
-              const SENSOR_IDX_REL_ATM_PRESSURE = 4;
-              const SENSOR_IDX_CO2_LVL = 5;
-              const SENSOR_IDX_VOC_LVL = 6;
-
-              this.sensorData[SENSOR_IDX_HUMIDITY] = rawData[1]/2.0;
-              this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG] = rawData[4];
-              this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG] = rawData[5];
-              this.sensorData[SENSOR_IDX_TEMPERATURE] = rawData[6]/100.0;
-              this.sensorData[SENSOR_IDX_REL_ATM_PRESSURE] = rawData[7]/50.0;
-              this.sensorData[SENSOR_IDX_CO2_LVL] = rawData[8]*1.0;
-              this.sensorData[SENSOR_IDX_VOC_LVL] = rawData[9]*1.0;
-
-              wavePlus.emit("updated", {
-                rssi: peripheral.rssi,
-                humidity: this.sensorData[SENSOR_IDX_HUMIDITY],
-                temperature: this.sensorData[SENSOR_IDX_TEMPERATURE],
-                pressure: this.sensorData[SENSOR_IDX_REL_ATM_PRESSURE],
-                co2: this.sensorData[SENSOR_IDX_CO2_LVL],
-                voc: this.sensorData[SENSOR_IDX_VOC_LVL],
-                radonLtAvg: this.sensorData[SENSOR_IDX_RADON_LONG_TERM_AVG],
-                radonStAvg: this.sensorData[SENSOR_IDX_RADON_SHORT_TERM_AVG],
-              });
-            });
-          });
-          peripheral.disconnect(function(error) {
-            console.log('Disconnected from peripheral: ' + peripheral.uuid);
-         });
-        });
-      };
-    };
-
-    noble.on("discover", onDiscover);
-
-    // start scanning
-    if (noble.state === "poweredOn") {
-      noble.startScanning([], true);
-    } else {
-      noble.once("stateChange", () => {
-        noble.startScanning([], true);
-      });
-    }
+      if (device) {
+        connect(this, device, peripheral);
+      }
+    });
   }
 }
 
-module.exports = new WavePlus();
+module.exports = WavePlus;
+
+function connect (wavePlus, device, peripheral) {
+  if (wavePlus._readingLookup[peripheral.id]) {
+    return;
+  }
+  wavePlus._readingTimeout[peripheral._id] = setTimeout(() => {
+    if (wavePlus._readingLookup[peripheral._id]) {
+      disconnect(device, peripheral);
+    }
+  }, 60 * 1000);
+  wavePlus._readingLookup[peripheral.id] = true;
+
+  wavePlus._adapter.stop();
+
+  peripheral.connect((error) => {
+    if (error) {
+      throw new Error(error);
+    }
+    const serviceUUIDs = [];
+    const characteristicUUIDs = wavePlus.uuid;
+    peripheral.discoverSomeServicesAndCharacteristics(serviceUUIDs, characteristicUUIDs, (error, _services, characteristics) => {
+      if (error) {
+        throw new Error(error);
+      }
+      characteristics[0].read((error, data) => {
+        if (error) {
+          throw new Error(error);
+        }
+        const rawData = struct.unpack('BBBBHHHHHHHH', data);
+
+        const { rssi } = peripheral;
+
+        const humidity = rawData[1] / 2.0;
+        const radonStAvg = rawData[4];
+        const radonLtAvg = rawData[5];
+        const temperature = rawData[6] / 100.0;
+        const pressure = rawData[7] / 50.0;
+        const co2 = rawData[8] * 1.0;
+        const voc = rawData[9] * 1.0;
+
+        device.emit('updated', {
+          rssi,
+          humidity,
+          temperature,
+          pressure,
+          co2,
+          voc,
+          radonLtAvg,
+          radonStAvg
+        });
+        disconnect(wavePlus, peripheral);
+      });
+    });
+  });
+}
+
+function disconnect (wavePlus, peripheral) {
+  peripheral.disconnect(function (error) {
+    if (error) {
+      throw new Error(error);
+    }
+    clearTimeout(wavePlus._readingTimeout[peripheral._id]);
+    wavePlus._readingLookup[peripheral.id] = null;
+
+    wavePlus._adapter.start();
+  });
+}
